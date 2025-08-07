@@ -235,7 +235,7 @@ const ProductCards = ({ product, quantity, size }) => {
 
   return (
     <Card
-      className={`mb-4 overflow-auto flex flex-col w-[280px] dark:bg-zinc-950 dark:border-zinc-900 dark:hover:border-zinc-700 dark:text-white justify-between items-start bg-white rounded-lg shadow-md  duration-300 lg:hover:scale-105 hover:shadow-lg ${
+      className={`mb-4 overflow-auto flex flex-col w-full max-w-[280px] dark:bg-zinc-950 dark:border-zinc-900 dark:hover:border-zinc-700 dark:text-white justify-between items-start bg-white rounded-lg shadow-md duration-300 lg:hover:scale-105 hover:shadow-lg ${
         location.pathname.includes("admin")
           ? "h-fit md:min-h-[620px]"
           : "min-h-[400px] sm:min-h-[500px]"
@@ -245,7 +245,7 @@ const ProductCards = ({ product, quantity, size }) => {
         <Dialog className="w-[80%]">
           <DialogTrigger className="w-full">
             <img
-              className="w-full h-22 sm:h-56 object-cover rounded-lg"
+              className="w-full h-32 sm:h-40 md:h-48 lg:h-56 object-cover rounded-lg"
               src={productImage}
               alt={productName}
             />
@@ -253,15 +253,15 @@ const ProductCards = ({ product, quantity, size }) => {
           <DialogContent
             className="
   dark:bg-black dark:border-zinc-900 dark:text-white
-   max-w-xs sm:max-w-sm md:max-w-md
-   mx-auto rounded-lg   max-h-[90vh] overflow-y-auto"
+   max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg
+   mx-auto rounded-lg max-h-[90vh] overflow-y-auto w-[95%] sm:w-auto"
           >
             <DialogHeader>
               <DialogTitle>{productName}</DialogTitle>
             </DialogHeader>
 
             <img
-              className="w-full h-64 object-contain rounded-lg"
+              className="w-full h-48 sm:h-56 md:h-64 lg:h-72 object-contain rounded-lg"
               src={productImage}
               alt={productName}
             />
@@ -405,8 +405,8 @@ const ProductCards = ({ product, quantity, size }) => {
             <DialogContent
               className="
   dark:bg-black dark:border-zinc-900 dark:text-white
-   max-w-xs sm:max-w-sm md:max-w-md
-   mx-auto rounded-lg   max-h-[90vh] overflow-y-auto"
+   max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg
+   mx-auto rounded-lg max-h-[90vh] overflow-y-auto w-[95%] sm:w-auto"
             >
               <DialogHeader>
                 <DialogTitle>{productName}</DialogTitle>

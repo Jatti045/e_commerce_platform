@@ -208,9 +208,9 @@ const ProductPage = () => {
         </div>
         {/* Products Grid */}
         {filteredProductsByQuery && filteredProductsByQuery.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6">
             {filteredProductsByQuery.map((product) => (
-              <div key={product._id} className="flex justify-center">
+              <div key={product._id} className="w-full flex justify-center">
                 <ProductCards product={product} />
               </div>
             ))}

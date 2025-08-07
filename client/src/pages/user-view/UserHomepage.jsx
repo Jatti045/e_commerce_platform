@@ -67,9 +67,9 @@ const UserHomepage = () => {
             </div>
           </div>
         ) : products && products.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-10 py-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-10 py-10">
             {products.map((product) => (
-              <div key={product._id} className="w-full">
+              <div key={product._id} className="w-full flex justify-center">
                 <ProductCards product={product} />
               </div>
             ))}
