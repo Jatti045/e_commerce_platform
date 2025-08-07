@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://billify.vercel.app/sitemap.xml
+
+# Disallow admin routes
+Disallow: /admin/
+Disallow: /api/
+Disallow: /user/cart
+Disallow: /user/checkout
+
+# Allow important pages
+Allow: /user/home
+Allow: /user/products
+Allow: /user/search
+Allow: /auth/
+
+# Crawl delay
+Crawl-delay: 1

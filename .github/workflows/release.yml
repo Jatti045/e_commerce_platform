@@ -1,0 +1,222 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  # Create GitHub release
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Generate changelog from git commits
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"* %s (%h)" --no-merges)
+          else
+            CHANGELOG=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"* %s (%h)" --no-merges)
+          fi
+
+          # Save changelog to file
+          echo "## What's Changed" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "$CHANGELOG" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${{ steps.get_version.outputs.VERSION }}" >> CHANGELOG.md
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          release_name: Release ${{ steps.get_version.outputs.VERSION }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'alpha') || contains(steps.get_version.outputs.VERSION, 'beta') || contains(steps.get_version.outputs.VERSION, 'rc') }}
+
+  # Build release assets
+  build-assets:
+    name: Build Release Assets
+    runs-on: ubuntu-latest
+    needs: create-release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install client dependencies
+        run: |
+          cd client
+          npm ci
+
+      - name: Build client
+        env:
+          VITE_API_URL: https://api.billify.com/api
+        run: |
+          cd client
+          npm run build
+
+      - name: Create client distribution archive
+        run: |
+          cd client
+          tar -czf ../billify-client-${{ github.ref_name }}.tar.gz dist/
+
+      - name: Install server dependencies
+        run: |
+          cd server
+          npm ci --production
+
+      - name: Create server distribution archive
+        run: |
+          tar -czf billify-server-${{ github.ref_name }}.tar.gz server/ --exclude=server/node_modules --exclude=server/.env*
+
+      - name: Upload client asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./billify-client-${{ github.ref_name }}.tar.gz
+          asset_name: billify-client-${{ github.ref_name }}.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload server asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./billify-server-${{ github.ref_name }}.tar.gz
+          asset_name: billify-server-${{ github.ref_name }}.tar.gz
+          asset_content_type: application/gzip
+
+  # Deploy release to production
+  deploy-release:
+    name: Deploy Release
+    runs-on: ubuntu-latest
+    needs: [create-release, build-assets]
+    environment: production
+
+    steps:
+      - name: Deploy to production
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /app/billify-production
+
+            # Download and extract release assets
+            wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/billify-client-${{ github.ref_name }}.tar.gz
+            wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/billify-server-${{ github.ref_name }}.tar.gz
+
+            # Backup current deployment
+            cp -r current-deployment backup-$(date +%Y%m%d_%H%M%S)
+
+            # Extract new release
+            tar -xzf billify-client-${{ github.ref_name }}.tar.gz
+            tar -xzf billify-server-${{ github.ref_name }}.tar.gz
+
+            # Update deployment
+            ./deploy-release.sh ${{ github.ref_name }}
+
+            # Health check
+            sleep 30
+            curl -f https://billify.com/health || exit 1
+
+            # Cleanup
+            rm -f *.tar.gz
+
+  # Update documentation
+  update-docs:
+    name: Update Documentation
+    runs-on: ubuntu-latest
+    needs: create-release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update version in docs
+        run: |
+          # Update version references in documentation
+          sed -i "s/Version: .*/Version: ${{ github.ref_name }}/" README.md
+
+      - name: Commit documentation updates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          git commit -m "Update documentation for release ${{ github.ref_name }}" || exit 0
+          git push origin main
+
+  # Notify stakeholders
+  notify-release:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [deploy-release]
+    if: always()
+
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ needs.deploy-release.result }}
+          text: |
+            🚀 Billify ${{ github.ref_name }} has been released!
+
+            📋 Release Notes: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+            🌐 Live Site: https://billify.com
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Send email notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Billify ${{ github.ref_name }} Released"
+          body: |
+            Hello Team,
+
+            Billify ${{ github.ref_name }} has been successfully released and deployed to production.
+
+            Release Notes: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+            Live Site: https://billify.com
+
+            Best regards,
+            CI/CD Bot
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: Billify CI/CD
