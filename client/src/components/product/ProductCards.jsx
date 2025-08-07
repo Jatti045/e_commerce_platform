@@ -404,9 +404,8 @@ const ProductCards = ({ product, quantity, size }) => {
             </DialogTrigger>
             <DialogContent
               className="
-  dark:bg-black dark:border-zinc-900 dark:text-white
-   max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg
-   mx-auto rounded-lg max-h-[90vh] overflow-y-auto w-[95%] sm:w-auto"
+  dark:bg-black dark:border-zinc-900 dark:text-white *:focus:outline-none
+   max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg rounded-md"
             >
               <DialogHeader>
                 <DialogTitle>{productName}</DialogTitle>
